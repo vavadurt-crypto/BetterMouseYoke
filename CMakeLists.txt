@@ -16,10 +16,11 @@ if(WIN32)
     target_compile_definitions(BetterMouseYoke PRIVATE
         IBM=1 XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1 XPLM303=1 XPLM400=1 XPLM411=1 XPLM420=1)
     target_link_libraries(BetterMouseYoke
-        "${SDK_DIR}/Libraries/Win/XPLM_64.lib"
-    )
+        "${SDK_DIR}/Libraries/Win/XPLM_64.lib")
     set_target_properties(BetterMouseYoke PROPERTIES
-        OUTPUT_NAME "win" SUFFIX ".xpl" PREFIX "")
+        OUTPUT_NAME "win"
+        SUFFIX ".xpl"
+        PREFIX "")
 
 elseif(APPLE)
     target_compile_definitions(BetterMouseYoke PRIVATE
@@ -27,18 +28,24 @@ elseif(APPLE)
     find_library(CORE_GRAPHICS CoreGraphics)
     target_link_libraries(BetterMouseYoke
         "${SDK_DIR}/Libraries/Mac/XPLM.framework"
-        ${CORE_GRAPHICS}
-    )
+        ${CORE_GRAPHICS})
     set_target_properties(BetterMouseYoke PROPERTIES
-        OUTPUT_NAME "mac" SUFFIX ".xpl" PREFIX "" MACOSX_BUNDLE FALSE)
+        OUTPUT_NAME "mac"
+        SUFFIX ".xpl"
+        PREFIX ""
+        MACOSX_BUNDLE FALSE)
 
 elseif(UNIX)
     target_compile_definitions(BetterMouseYoke PRIVATE
         LIN=1 XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1 XPLM303=1 XPLM400=1 XPLM411=1 XPLM420=1)
     find_package(X11 REQUIRED)
     target_include_directories(BetterMouseYoke PRIVATE ${X11_INCLUDE_DIR})
-    target_link_libraries(BetterMouseYoke ${X11_LIBRARIES} Xtst)
+    target_link_libraries(BetterMouseYoke
+        ${X11_LIBRARIES}
+        Xtst)
     set_target_properties(BetterMouseYoke PROPERTIES
-        OUTPUT_NAME "lin" SUFFIX ".xpl" PREFIX "")
+        OUTPUT_NAME "lin"
+        SUFFIX ".xpl"
+        PREFIX "")
+
 endif()
-}
