@@ -26,9 +26,11 @@ elseif(APPLE)
     target_compile_definitions(BetterMouseYoke PRIVATE
         APL=1 XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1 XPLM303=1 XPLM400=1 XPLM411=1 XPLM420=1)
     find_library(CORE_GRAPHICS CoreGraphics)
+    find_library(CORE_FOUNDATION CoreFoundation)
     target_link_libraries(BetterMouseYoke
         "${SDK_DIR}/Libraries/Mac/XPLM.framework"
-        ${CORE_GRAPHICS})
+        ${CORE_GRAPHICS}
+        ${CORE_FOUNDATION})
     set_target_properties(BetterMouseYoke PROPERTIES
         OUTPUT_NAME "mac"
         SUFFIX ".xpl"
