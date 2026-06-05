@@ -20,9 +20,8 @@ jobs:
       - name: Download X-Plane SDK
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sample_templates/XPSDK401.zip" -OutFile SDK.zip
+          Invoke-WebRequest -Uri "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -OutFile SDK.zip
           Expand-Archive SDK.zip -DestinationPath .
-          Rename-Item "SDK" "SDK" -ErrorAction SilentlyContinue
 
       - name: Configure CMake
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -46,7 +45,7 @@ jobs:
 
       - name: Download X-Plane SDK
         run: |
-          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sample_templates/XPSDK401.zip" -o SDK.zip
+          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -o SDK.zip
           unzip SDK.zip
 
       - name: Configure CMake
@@ -74,7 +73,7 @@ jobs:
 
       - name: Download X-Plane SDK
         run: |
-          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sample_templates/XPSDK401.zip" -o SDK.zip
+          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -o SDK.zip
           unzip SDK.zip
 
       - name: Configure CMake
