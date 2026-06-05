@@ -3,8 +3,8 @@
  * Cross-platform: Windows, macOS, Linux
  *
  * Windows : compile -> win.xpl  (Visual Studio / MSVC)
- * macOS   : compile -> mac.xpl  (Xcode / clang, -framework CoreGraphics -framework AppKit)
- * Linux   : compile -> lin.xpl  (gcc/clang, -lX11)
+ * macOS   : compile -> mac.xpl  (Xcode / clang, -framework CoreGraphics)
+ * Linux   : compile -> lin.xpl  (gcc/clang, -lX11 -lXtst)
  */
 
 #include <cstring>
@@ -26,7 +26,6 @@
     #include <windows.h>
 #elif APL
     #include <CoreGraphics/CoreGraphics.h>
-    #include <AppKit/AppKit.h>
 #elif LIN
     #include <X11/Xlib.h>
     #include <X11/extensions/XTest.h>
@@ -52,27 +51,20 @@ static int   g_cursor_y       = 0;
 static int   g_rudder_center_x = 0;
 static int   g_rudder_center_y = 0;
 
-static XPLMDataRef g_dr_override_joystick = NULL;
-static XPLMDataRef g_dr_yoke_pitch        = NULL;
-static XPLMDataRef g_dr_yoke_roll         = NULL;
-static XPLMDataRef g_dr_yoke_heading      = NULL;
-
-static XPLMCommandRef g_cmd_toggle = NULL;
+static XPLMDataRef    g_dr_override_joystick = NULL;
+static XPLMDataRef    g_dr_yoke_pitch        = NULL;
+static XPLMDataRef    g_dr_yoke_roll         = NULL;
+static XPLMDataRef    g_dr_yoke_heading      = NULL;
+static XPLMCommandRef g_cmd_toggle           = NULL;
 
 // -----------------------------------------------------------------------
-// Cursor handles — platform specific
+// Cursor handles — Windows only; other platforms use XPLMSetCursorStatus
 // -----------------------------------------------------------------------
 #if IBM
     static HCURSOR g_cursor_yoke   = NULL;
     static HCURSOR g_cursor_rudder = NULL;
     static HCURSOR g_cursor_orig   = NULL;
-#elif APL
-    // NSCursor pointers — stored as void* to avoid ObjC in header scope
-    static void* g_cursor_yoke   = NULL;
-    static void* g_cursor_rudder = NULL;
-    static void* g_cursor_orig   = NULL;
 #endif
-// Linux: XPLMSetCursorStatus only — no native cursor handle needed
 
 // -----------------------------------------------------------------------
 // Platform: load settings
@@ -110,14 +102,10 @@ static void LoadSettings()
 static void SetYokePitch(float v)   { XPLMSetDataf(g_dr_yoke_pitch,   v); }
 static void SetYokeRoll(float v)    { XPLMSetDataf(g_dr_yoke_roll,    v); }
 static void SetYokeHeading(float v) { XPLMSetDataf(g_dr_yoke_heading, v); }
-
-static void EnableOverride(int on)
-{
-    XPLMSetDatai(g_dr_override_joystick, on);
-}
+static void EnableOverride(int on)  { XPLMSetDatai(g_dr_override_joystick, on); }
 
 // -----------------------------------------------------------------------
-// Platform: get mouse position (in X-Plane screen coords, origin bottom-left)
+// Platform: get mouse position (X-Plane coords: origin bottom-left)
 // -----------------------------------------------------------------------
 static void GetMousePos(int* x, int* y)
 {
@@ -135,7 +123,7 @@ static void GetMousePos(int* x, int* y)
     int clientH = rect.bottom - rect.top;
 
     *x = p.x - origin.x;
-    *y = clientH - (p.y - origin.y);   // flip Y: XP origin is bottom-left
+    *y = clientH - (p.y - origin.y);
 
     if (*x < 0)       *x = 0;
     if (*y < 0)       *y = 0;
@@ -143,7 +131,6 @@ static void GetMousePos(int* x, int* y)
     if (*y > clientH) *y = clientH;
 
 #elif APL
-    // CGEventGetLocation returns global screen coords (top-left origin, points)
     CGEventRef event = CGEventCreate(NULL);
     CGPoint    loc   = CGEventGetLocation(event);
     CFRelease(event);
@@ -151,9 +138,8 @@ static void GetMousePos(int* x, int* y)
     int sw = 0, sh = 0;
     XPLMGetScreenSize(&sw, &sh);
 
-    // Flip Y from top-left to bottom-left
     *x = (int)loc.x;
-    *y = sh - (int)loc.y;
+    *y = sh - (int)loc.y;  // flip Y: CG origin is top-left, XP is bottom-left
 
     if (*x < 0)  *x = 0;
     if (*y < 0)  *y = 0;
@@ -161,14 +147,13 @@ static void GetMousePos(int* x, int* y)
     if (*y > sh) *y = sh;
 
 #elif LIN
-    // Use XQueryPointer via the root window
-    Display* dpy = XOpenDisplay(NULL);
+    Display*  dpy  = XOpenDisplay(NULL);
     if (!dpy) { *x = 0; *y = 0; return; }
 
-    Window    root   = DefaultRootWindow(dpy);
-    Window    child;
-    int       rx, ry, wx, wy;
-    unsigned  mask;
+    Window   root = DefaultRootWindow(dpy);
+    Window   child;
+    int      rx, ry, wx, wy;
+    unsigned mask;
     XQueryPointer(dpy, root, &root, &child, &rx, &ry, &wx, &wy, &mask);
     XCloseDisplay(dpy);
 
@@ -176,7 +161,7 @@ static void GetMousePos(int* x, int* y)
     XPLMGetScreenSize(&sw, &sh);
 
     *x = rx;
-    *y = sh - ry;   // flip Y
+    *y = sh - ry;
 
     if (*x < 0)  *x = 0;
     if (*y < 0)  *y = 0;
@@ -186,7 +171,7 @@ static void GetMousePos(int* x, int* y)
 }
 
 // -----------------------------------------------------------------------
-// Platform: move mouse cursor (X-Plane screen coords, bottom-left origin)
+// Platform: move mouse cursor
 // -----------------------------------------------------------------------
 static void SetMousePosXP(int x, int y)
 {
@@ -196,7 +181,6 @@ static void SetMousePosXP(int x, int y)
     GetClientRect(hwnd, &rect);
     POINT origin = {0, 0};
     ClientToScreen(hwnd, &origin);
-
     int clientH = rect.bottom - rect.top;
     SetCursorPos(origin.x + x, origin.y + (clientH - y));
 
@@ -210,10 +194,8 @@ static void SetMousePosXP(int x, int y)
 #elif LIN
     Display* dpy = XOpenDisplay(NULL);
     if (!dpy) return;
-
     int sw = 0, sh = 0;
     XPLMGetScreenSize(&sw, &sh);
-
     XTestFakeMotionEvent(dpy, DefaultScreen(dpy), x, sh - y, 0);
     XFlush(dpy);
     XCloseDisplay(dpy);
@@ -229,87 +211,60 @@ static int IsLeftButtonDown()
     return (GetAsyncKeyState(VK_LBUTTON) & 0x8000) ? 1 : 0;
 
 #elif APL
-    // CGEventSourceButtonState checks the hardware button state
     return CGEventSourceButtonState(kCGEventSourceStateHIDSystemState,
                                     kCGMouseButtonLeft) ? 1 : 0;
 
 #elif LIN
-    Display* dpy = XOpenDisplay(NULL);
+    Display*  dpy  = XOpenDisplay(NULL);
     if (!dpy) return 0;
-
-    Window    root = DefaultRootWindow(dpy);
-    Window    child;
-    int       rx, ry, wx, wy;
-    unsigned  mask;
+    Window   root = DefaultRootWindow(dpy);
+    Window   child;
+    int      rx, ry, wx, wy;
+    unsigned mask;
     XQueryPointer(dpy, root, &root, &child, &rx, &ry, &wx, &wy, &mask);
     XCloseDisplay(dpy);
-
     return (mask & Button1Mask) ? 1 : 0;
 #endif
 }
 
 // -----------------------------------------------------------------------
 // Platform: cursor management
+// Windows uses native HCURSOR; Mac/Linux use XPLMSetCursorStatus via callback
 // -----------------------------------------------------------------------
 static void InitCursors()
 {
 #if IBM
     g_cursor_yoke   = LoadCursor(NULL, IDC_CROSS);
     g_cursor_rudder = LoadCursor(NULL, IDC_SIZEWE);
-#elif APL
-    // Use ObjC runtime calls so we don't need .mm file
-    // crosshairCursor and resizeLeftRightCursor
-    g_cursor_yoke   = (void*)[NSCursor crosshairCursor];
-    g_cursor_rudder = (void*)[NSCursor resizeLeftRightCursor];
-#elif LIN
-    // Linux cursor change handled via XPLMSetCursorStatus in the callback
-    (void)0;
 #endif
 }
 
 static void SetYokeCursor()
 {
 #if IBM
-    if (g_cursor_yoke) SetCursor((HCURSOR)g_cursor_yoke);
-#elif APL
-    if (g_cursor_yoke) [(NSCursor*)g_cursor_yoke set];
-#elif LIN
-    // No direct cursor API — XPLMSetCursorStatus is called in CursorCallback
-    (void)0;
+    if (g_cursor_yoke) SetCursor(g_cursor_yoke);
 #endif
+    // Mac/Linux: cursor set via XPLMSetCursorStatus in DrawCallback
 }
 
 static void SetRudderCursor()
 {
 #if IBM
-    if (g_cursor_rudder) SetCursor((HCURSOR)g_cursor_rudder);
-#elif APL
-    if (g_cursor_rudder) [(NSCursor*)g_cursor_rudder set];
-#elif LIN
-    (void)0;
+    if (g_cursor_rudder) SetCursor(g_cursor_rudder);
 #endif
 }
 
 static void RestoreOrigCursor()
 {
 #if IBM
-    if (g_cursor_orig) SetCursor((HCURSOR)g_cursor_orig);
-#elif APL
-    if (g_cursor_orig) [(NSCursor*)g_cursor_orig set];
-    else [[NSCursor arrowCursor] set];
-#elif LIN
-    (void)0;
+    if (g_cursor_orig) SetCursor(g_cursor_orig);
 #endif
 }
 
 static void SaveOrigCursor()
 {
 #if IBM
-    g_cursor_orig = (void*)GetCursor();
-#elif APL
-    g_cursor_orig = (void*)[NSCursor currentCursor];
-#elif LIN
-    (void)0;
+    g_cursor_orig = GetCursor();
 #endif
 }
 
