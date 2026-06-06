@@ -23,6 +23,10 @@ jobs:
           Invoke-WebRequest -Uri "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -OutFile XPSDK.zip
           Expand-Archive XPSDK.zip -DestinationPath XPSDK
 
+      - name: Inspect SDK structure
+        shell: pwsh
+        run: Get-ChildItem -Recurse XPSDK | Select-Object FullName | head -40
+
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -58,6 +62,9 @@ jobs:
         run: |
           curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -o XPSDK.zip
           unzip XPSDK.zip -d XPSDK
+
+      - name: Inspect SDK structure
+        run: find XPSDK -maxdepth 4 | head -40
 
       - name: Build mac.xpl (arm64 + x86_64)
         run: |
@@ -96,6 +103,9 @@ jobs:
           curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -o XPSDK.zip
           unzip XPSDK.zip -d XPSDK
 
+      - name: Inspect SDK structure
+        run: find XPSDK -maxdepth 4 | head -40
+
       - name: Build lin.xpl
         run: |
           g++ -std=c++17 -O2 -fPIC \
@@ -114,7 +124,7 @@ jobs:
           path: lin.xpl
 
   # -----------------------------------------------------------------------
-  # Package — junta os 3 em um ZIP no formato do plugin
+  # Package
   # -----------------------------------------------------------------------
   package:
     needs: [build-windows, build-macos, build-linux]
