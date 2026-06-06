@@ -148,7 +148,7 @@ jobs:
           path: dist/BetterMouseYoke/64
 
       - name: Copy settings.ini
-        run: cp settings.ini dist/BetterMouseYoke/settings.ini
+        run: cp settings.ini dist/BetterMouseYoke/settings.ini 2>/dev/null || echo "settings.ini not found, skipping"
 
       - name: Create ZIP
         run: |
