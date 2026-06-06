@@ -188,8 +188,13 @@ static void SetMousePosXP(int x, int y)
     int sw = 0, sh = 0;
     XPLMGetScreenSize(&sw, &sh);
     CGPoint pt = CGPointMake((CGFloat)x, (CGFloat)(sh - y));
-    CGWarpMouseCursorPosition(pt);
-    CGAssociateMouseAndMouseCursorPosition(true);
+    // CGWarpMouseCursorPosition requer Accessibility no macOS 13+.
+    // CGEventCreateMouseEvent + CGEventPost move o cursor sem essa permissao.
+    CGEventRef moveEvent = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, pt, kCGMouseButtonLeft);
+    if (moveEvent) {
+        CGEventPost(kCGHIDEventTap, moveEvent);
+        CFRelease(moveEvent);
+    }
 
 #elif LIN
     Display* dpy = XOpenDisplay(NULL);
