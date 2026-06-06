@@ -1,4 +1,4 @@
-/**
+a/**
  * BetterMouseYoke - X-Plane 12 Plugin
  * Cross-platform: Windows, macOS, Linux
  *
@@ -58,7 +58,14 @@ static XPLMDataRef    g_dr_yoke_heading      = NULL;
 static XPLMCommandRef g_cmd_toggle           = NULL;
 
 // -----------------------------------------------------------------------
-// Cursor handles — Windows only; other platforms use XPLMSetCursorStatus
+// Linux: conexao X11 persistente (evita XOpenDisplay/XCloseDisplay por frame)
+// -----------------------------------------------------------------------
+#if LIN
+static Display* g_display = NULL;
+#endif
+
+// -----------------------------------------------------------------------
+// Cursor handles — Windows only
 // -----------------------------------------------------------------------
 #if IBM
     static HCURSOR g_cursor_yoke   = NULL;
@@ -139,7 +146,7 @@ static void GetMousePos(int* x, int* y)
     XPLMGetScreenSize(&sw, &sh);
 
     *x = (int)loc.x;
-    *y = sh - (int)loc.y;  // flip Y: CG origin is top-left, XP is bottom-left
+    *y = sh - (int)loc.y;  // flip Y: CG origin top-left, XP bottom-left
 
     if (*x < 0)  *x = 0;
     if (*y < 0)  *y = 0;
@@ -147,15 +154,13 @@ static void GetMousePos(int* x, int* y)
     if (*y > sh) *y = sh;
 
 #elif LIN
-    Display*  dpy  = XOpenDisplay(NULL);
-    if (!dpy) { *x = 0; *y = 0; return; }
+    if (!g_display) { *x = 0; *y = 0; return; }
 
-    Window   root = DefaultRootWindow(dpy);
+    Window   root = DefaultRootWindow(g_display);
     Window   child;
     int      rx, ry, wx, wy;
     unsigned mask;
-    XQueryPointer(dpy, root, &root, &child, &rx, &ry, &wx, &wy, &mask);
-    XCloseDisplay(dpy);
+    XQueryPointer(g_display, root, &root, &child, &rx, &ry, &wx, &wy, &mask);
 
     int sw = 0, sh = 0;
     XPLMGetScreenSize(&sw, &sh);
@@ -197,13 +202,11 @@ static void SetMousePosXP(int x, int y)
     }
 
 #elif LIN
-    Display* dpy = XOpenDisplay(NULL);
-    if (!dpy) return;
+    if (!g_display) return;
     int sw = 0, sh = 0;
     XPLMGetScreenSize(&sw, &sh);
-    XTestFakeMotionEvent(dpy, DefaultScreen(dpy), x, sh - y, 0);
-    XFlush(dpy);
-    XCloseDisplay(dpy);
+    XTestFakeMotionEvent(g_display, DefaultScreen(g_display), x, sh - y, 0);
+    XFlush(g_display);
 #endif
 }
 
@@ -220,21 +223,18 @@ static int IsLeftButtonDown()
                                     kCGMouseButtonLeft) ? 1 : 0;
 
 #elif LIN
-    Display*  dpy  = XOpenDisplay(NULL);
-    if (!dpy) return 0;
-    Window   root = DefaultRootWindow(dpy);
+    if (!g_display) return 0;
+    Window   root = DefaultRootWindow(g_display);
     Window   child;
     int      rx, ry, wx, wy;
     unsigned mask;
-    XQueryPointer(dpy, root, &root, &child, &rx, &ry, &wx, &wy, &mask);
-    XCloseDisplay(dpy);
+    XQueryPointer(g_display, root, &root, &child, &rx, &ry, &wx, &wy, &mask);
     return (mask & Button1Mask) ? 1 : 0;
 #endif
 }
 
 // -----------------------------------------------------------------------
 // Platform: cursor management
-// Windows uses native HCURSOR; Mac/Linux use XPLMSetCursorStatus via callback
 // -----------------------------------------------------------------------
 static void InitCursors()
 {
@@ -249,7 +249,6 @@ static void SetYokeCursor()
 #if IBM
     if (g_cursor_yoke) SetCursor(g_cursor_yoke);
 #endif
-    // Mac/Linux: cursor set via XPLMSetCursorStatus in DrawCallback
 }
 
 static void SetRudderCursor()
@@ -396,7 +395,6 @@ static float FlightLoopCallback(float elapsedSinceLastCall,
     {
         float dx = (float)(g_cursor_x - g_rudder_center_x);
 
-        // Deadzone
         if (fabsf(dx) < 8.0f) dx = 0.0f;
 
         float rudder = dx / cfg_rudder_defl_dist;
@@ -411,7 +409,6 @@ static float FlightLoopCallback(float elapsedSinceLastCall,
     }
     else
     {
-        // Gradual rudder return to neutral
         if (g_rudder_pos > 0.001f || g_rudder_pos < -0.001f)
         {
             float step = cfg_rudder_return_speed * elapsedSinceLastCall;
@@ -428,7 +425,6 @@ static float FlightLoopCallback(float elapsedSinceLastCall,
             SetYokeHeading(g_rudder_pos);
         }
 
-        // Yoke mode: absolute mouse position
         float roll  = ((float)g_cursor_x / (float)sw) * 2.0f - 1.0f;
         float pitch = -(((float)g_cursor_y / (float)sh) * 2.0f - 1.0f);
 
@@ -449,11 +445,17 @@ static float FlightLoopCallback(float elapsedSinceLastCall,
 // -----------------------------------------------------------------------
 PLUGIN_API int XPluginStart(char* outName, char* outSig, char* outDesc)
 {
-    strcpy(outName, "BetterMouseYoke");
-    strcpy(outSig,  "bettermouseyoke.xp12");
-    strcpy(outDesc, "Mouse yoke control melhorado para X-Plane 12");
+    strncpy(outName, "BetterMouseYoke",                          255);
+    strncpy(outSig,  "bettermouseyoke.xp12",                     255);
+    strncpy(outDesc, "Mouse yoke control melhorado para X-Plane 12", 255);
 
     LoadSettings();
+
+#if LIN
+    g_display = XOpenDisplay(NULL);
+    if (!g_display)
+        XPLMDebugString("BetterMouseYoke: AVISO - nao foi possivel abrir display X11.\n");
+#endif
 
     g_dr_override_joystick = XPLMFindDataRef("sim/operation/override/override_joystick");
     g_dr_yoke_pitch        = XPLMFindDataRef("sim/cockpit2/controls/yoke_pitch_ratio");
@@ -495,6 +497,14 @@ PLUGIN_API void XPluginStop()
 
     if (g_cmd_toggle)
         XPLMUnregisterCommandHandler(g_cmd_toggle, CommandHandler, 1, NULL);
+
+#if LIN
+    if (g_display)
+    {
+        XCloseDisplay(g_display);
+        g_display = NULL;
+    }
+#endif
 
     XPLMDebugString("BetterMouseYoke: Encerrado.\n");
 }
