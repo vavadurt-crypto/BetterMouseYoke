@@ -38,11 +38,11 @@ jobs:
           cl.exe /std:c++17 /O2 /EHsc /LD ^
             /DIBM=1 /DAPL=0 /DLIN=0 ^
             /DXPLM400 /DXPLM303 /DXPLM301 /DXPLM300 /DXPLM210 /DXPLM200 ^
-            /I "XPSDK\CHeaders\XPLM" ^
-            /I "XPSDK\CHeaders\Widgets" ^
+            /I "XPSDK\SDK\CHeaders\XPLM" ^
+            /I "XPSDK\SDK\CHeaders\Widgets" ^
             BetterMouseYoke.cpp ^
             /link /DLL /OUT:win.xpl ^
-            /LIBPATH:"XPSDK\Libraries\Win" ^
+            /LIBPATH:"XPSDK\SDK\Libraries\Win" ^
             XPLM_64.lib
 
       - uses: actions/upload-artifact@v4
@@ -72,9 +72,9 @@ jobs:
             -DAPL=1 -DIBM=0 -DLIN=0 \
             -DXPLM400 -DXPLM303 -DXPLM301 -DXPLM300 -DXPLM210 -DXPLM200 \
             -arch arm64 -arch x86_64 \
-            -I XPSDK/CHeaders/XPLM \
-            -I XPSDK/CHeaders/Widgets \
-            -F XPSDK/Libraries/Mac \
+            -I XPSDK/SDK/CHeaders/XPLM \
+            -I XPSDK/SDK/CHeaders/Widgets \
+            -F XPSDK/SDK/Libraries/Mac \
             -framework XPLM \
             -framework CoreGraphics \
             -framework CoreFoundation \
@@ -111,8 +111,8 @@ jobs:
           g++ -std=c++17 -O2 -fPIC \
             -DLIN=1 -DAPL=0 -DIBM=0 \
             -DXPLM400 -DXPLM303 -DXPLM301 -DXPLM300 -DXPLM210 -DXPLM200 \
-            -I XPSDK/CHeaders/XPLM \
-            -I XPSDK/CHeaders/Widgets \
+            -I XPSDK/SDK/CHeaders/XPLM \
+            -I XPSDK/SDK/CHeaders/Widgets \
             -shared \
             -o lin.xpl \
             BetterMouseYoke.cpp \
