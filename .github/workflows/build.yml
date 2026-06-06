@@ -2,15 +2,15 @@ name: Build BetterMouseYoke
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "**" ]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+  release:
+    types: [created]
 
 jobs:
 
   # -----------------------------------------------------------------------
-  # Windows — win.xpl
+  # Windows → win.xpl
   # -----------------------------------------------------------------------
   build-windows:
     runs-on: windows-latest
@@ -20,23 +20,28 @@ jobs:
       - name: Download X-Plane SDK
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -OutFile SDK.zip
-          Expand-Archive SDK.zip -DestinationPath .
+          Invoke-WebRequest -Uri "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK401.zip" -OutFile XPSDK.zip
+          Expand-Archive XPSDK.zip -DestinationPath XPSDK
 
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build win.xpl
+        shell: cmd
+        run: |
+          cl.exe /std:c++17 /O2 /EHsc /LD ^
+            /DIBM=1 /DAPL=0 /DLIN=0 ^
+            /I "XPSDK\CHeaders\XPLM" ^
+            /I "XPSDK\CHeaders\Widgets" ^
+            BetterMouseYoke.cpp ^
+            /link /DLL /OUT:win.xpl ^
+            /LIBPATH:"XPSDK\Libraries\Win" ^
+            XPLM_64.lib
 
-      - name: Build
-        run: cmake --build build --config Release
-
-      - name: Upload win.xpl
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: win-xpl
-          path: build/Release/win.xpl
+          path: win.xpl
 
   # -----------------------------------------------------------------------
-  # macOS — mac.xpl
+  # macOS → mac.xpl (arm64 + x86_64 universal)
   # -----------------------------------------------------------------------
   build-macos:
     runs-on: macos-latest
@@ -45,23 +50,31 @@ jobs:
 
       - name: Download X-Plane SDK
         run: |
-          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -o SDK.zip
-          unzip SDK.zip
+          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK401.zip" -o XPSDK.zip
+          unzip XPSDK.zip -d XPSDK
 
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build mac.xpl (arm64 + x86_64)
+        run: |
+          clang++ -std=c++17 -O2 \
+            -DAPL=1 -DIBM=0 -DLIN=0 \
+            -arch arm64 -arch x86_64 \
+            -I XPSDK/CHeaders/XPLM \
+            -I XPSDK/CHeaders/Widgets \
+            -F XPSDK/Libraries/Mac \
+            -framework XPLM \
+            -framework CoreGraphics \
+            -framework CoreFoundation \
+            -dynamiclib \
+            -o mac.xpl \
+            BetterMouseYoke.cpp
 
-      - name: Build
-        run: cmake --build build --config Release
-
-      - name: Upload mac.xpl
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: mac-xpl
-          path: build/mac.xpl
+          path: mac.xpl
 
   # -----------------------------------------------------------------------
-  # Linux — lin.xpl
+  # Linux → lin.xpl
   # -----------------------------------------------------------------------
   build-linux:
     runs-on: ubuntu-latest
@@ -73,17 +86,65 @@ jobs:
 
       - name: Download X-Plane SDK
         run: |
-          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -o SDK.zip
-          unzip SDK.zip
+          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK401.zip" -o XPSDK.zip
+          unzip XPSDK.zip -d XPSDK
 
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build lin.xpl
+        run: |
+          g++ -std=c++17 -O2 -fPIC \
+            -DLIN=1 -DAPL=0 -DIBM=0 \
+            -I XPSDK/CHeaders/XPLM \
+            -I XPSDK/CHeaders/Widgets \
+            -shared \
+            -o lin.xpl \
+            BetterMouseYoke.cpp \
+            -lX11 -lXtst
 
-      - name: Build
-        run: cmake --build build --config Release
-
-      - name: Upload lin.xpl
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: lin-xpl
-          path: build/lin.xpl
+          path: lin.xpl
+
+  # -----------------------------------------------------------------------
+  # Package — junta os 3 em um ZIP no formato do plugin
+  # -----------------------------------------------------------------------
+  package:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: win-xpl
+          path: dist/BetterMouseYoke/64
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: mac-xpl
+          path: dist/BetterMouseYoke/64
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: lin-xpl
+          path: dist/BetterMouseYoke/64
+
+      - name: Copy settings.ini
+        run: cp settings.ini dist/BetterMouseYoke/settings.ini
+
+      - name: Create ZIP
+        run: |
+          cd dist
+          zip -r ../BetterMouseYoke.zip BetterMouseYoke
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BetterMouseYoke
+          path: BetterMouseYoke.zip
+
+      # Publica no Release automaticamente se for um release tag
+      - name: Upload to Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: BetterMouseYoke.zip
