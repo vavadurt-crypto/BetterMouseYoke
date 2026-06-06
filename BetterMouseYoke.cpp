@@ -1,4 +1,5 @@
-a/**
+#define _CRT_SECURE_NO_WARNINGS
+/**
  * BetterMouseYoke - X-Plane 12 Plugin
  * Cross-platform: Windows, macOS, Linux
  *
@@ -10,7 +11,6 @@ a/**
 #include <cstring>
 #include <cstdio>
 #include <cmath>
-#include <string>
 
 #include "XPLMPlugin.h"
 #include "XPLMDisplay.h"
