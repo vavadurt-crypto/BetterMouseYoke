@@ -37,7 +37,7 @@ jobs:
         run: |
           cl.exe /std:c++17 /O2 /EHsc /LD ^
             /DIBM=1 /DAPL=0 /DLIN=0 ^
-            /DXPLM400 /DXPLM303 /DXPLM301 /DXPLM300 /DXPLM210 /DXPLM200 ^
+            /DXPLM400 /DXPLM303 /DXPLM301 /DXPLM300 /DXPLM210 /DXPLM200 /D_CRT_SECURE_NO_WARNINGS ^
             /I "XPSDK\SDK\CHeaders\XPLM" ^
             /I "XPSDK\SDK\CHeaders\Widgets" ^
             BetterMouseYoke.cpp ^
