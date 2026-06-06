@@ -43,7 +43,7 @@ jobs:
             BetterMouseYoke.cpp ^
             /link /DLL /OUT:win.xpl ^
             /LIBPATH:"XPSDK\SDK\Libraries\Win" ^
-            XPLM_64.lib
+            XPLM_64.lib user32.lib gdi32.lib
 
       - uses: actions/upload-artifact@v4
         with:
