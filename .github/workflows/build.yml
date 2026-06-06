@@ -20,7 +20,7 @@ jobs:
       - name: Download X-Plane SDK
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK401.zip" -OutFile XPSDK.zip
+          Invoke-WebRequest -Uri "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -OutFile XPSDK.zip
           Expand-Archive XPSDK.zip -DestinationPath XPSDK
 
       - name: Setup MSVC
@@ -33,6 +33,7 @@ jobs:
         run: |
           cl.exe /std:c++17 /O2 /EHsc /LD ^
             /DIBM=1 /DAPL=0 /DLIN=0 ^
+            /DXPLM400 /DXPLM303 /DXPLM301 /DXPLM300 /DXPLM210 /DXPLM200 ^
             /I "XPSDK\CHeaders\XPLM" ^
             /I "XPSDK\CHeaders\Widgets" ^
             BetterMouseYoke.cpp ^
@@ -55,13 +56,14 @@ jobs:
 
       - name: Download X-Plane SDK
         run: |
-          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK401.zip" -o XPSDK.zip
+          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -o XPSDK.zip
           unzip XPSDK.zip -d XPSDK
 
       - name: Build mac.xpl (arm64 + x86_64)
         run: |
           clang++ -std=c++17 -O2 \
             -DAPL=1 -DIBM=0 -DLIN=0 \
+            -DXPLM400 -DXPLM303 -DXPLM301 -DXPLM300 -DXPLM210 -DXPLM200 \
             -arch arm64 -arch x86_64 \
             -I XPSDK/CHeaders/XPLM \
             -I XPSDK/CHeaders/Widgets \
@@ -91,13 +93,14 @@ jobs:
 
       - name: Download X-Plane SDK
         run: |
-          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK401.zip" -o XPSDK.zip
+          curl -L "https://developer.x-plane.com/wp-content/plugins/code-sample-generation/sdk_zip_files/XPSDK430.zip" -o XPSDK.zip
           unzip XPSDK.zip -d XPSDK
 
       - name: Build lin.xpl
         run: |
           g++ -std=c++17 -O2 -fPIC \
             -DLIN=1 -DAPL=0 -DIBM=0 \
+            -DXPLM400 -DXPLM303 -DXPLM301 -DXPLM300 -DXPLM210 -DXPLM200 \
             -I XPSDK/CHeaders/XPLM \
             -I XPSDK/CHeaders/Widgets \
             -shared \
